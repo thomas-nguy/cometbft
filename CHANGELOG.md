@@ -6,6 +6,11 @@
 
 ### BUG FIXES
 
+- `[mempool]` reject abusive gossip messages before unmarshalling: both the
+  classic and app mempool reactors now implement `MsgBytesFilter` to validate
+  the transaction count and sizes of an inbound `Txs` message, preventing a
+  peer from forcing heap allocation disproportionate to the wire size by
+  packing many tiny/empty entries into a single message.
 - `[blocksync]` fix flaky `TestBlockPoolBasic` deadlock under `-race`
   ([\#5867](https://github.com/cometbft/cometbft/pull/5867))
 - `[mempool]` fix setRecheckFull/setDone race causing spurious ErrRecheckFull.

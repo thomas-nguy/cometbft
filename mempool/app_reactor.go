@@ -12,6 +12,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// AppReactor implements MsgBytesFilter to reject abusive gossip messages
+// before they are unmarshalled.
+var _ p2p.MsgBytesFilter = (*AppReactor)(nil)
+
 // AppReactor for interacting with AppMempool
 type AppReactor struct {
 	p2p.BaseReactor
@@ -132,6 +136,17 @@ func (r *AppReactor) EnableInOutTxs() {
 
 	r.Logger.Info("Enabled inbound and outbound transactions")
 	close(r.waitForSwitchingOnCh)
+}
+
+// FilterMsgBytes implements p2p.MsgBytesFilter. It rejects malformed or abusive
+// mempool messages before the (allocating) protobuf unmarshal, preventing a
+// peer from forcing heap allocation disproportionate to the wire size by
+// packing many tiny/empty txs entries into a single message.
+func (r *AppReactor) FilterMsgBytes(chID byte, _ p2p.Peer, msgBytes []byte) error {
+	if chID != MempoolChannel || len(msgBytes) == 0 {
+		return nil
+	}
+	return filterMempoolMsgBytes(msgBytes, r.config.MaxTxBytes, gossipBatchByteBudget(r.config))
 }
 
 func (r *AppReactor) Receive(e p2p.Envelope) {
